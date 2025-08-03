@@ -1,0 +1,47 @@
+{
+  "name": "app",
+  "version": "0.0.1",
+  "description": "Synta is a local-first visual website builder which syncs your designs to code instantly.",
+  "keywords": [
+    "website-builder",
+    "visual-editor",
+    "local-first",
+    "code-generation",
+    "design-to-code",
+    "electron-app",
+    "react",
+    "typescript"
+  ],
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "electron .",
+    "mp:build": "node esbuild.config.js",
+    "mp:build:watch": "node esbuild.config.js --watch",
+    "mp:build:prod": "node esbuild.config.js --minify",
+    "renderer:dev": "vite",
+    "renderer:build": "tsc -p src/render/tsconfig.json && vite build",
+    "electron:dev": "concurrently \"bun mp:build:watch\" \"bun renderer:dev\" \"wait-on http://localhost:5174 && bun start\"",
+    "dev": "concurrently \"bun mp:build:watch\" \"bun renderer:dev\" \"wait-on http://localhost:5174 && bun start\""
+  },
+  "author": "Neo Develops",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.19",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react-swc": "^3.11.0",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.5",
+    "esbuild": "^0.24.0",
+    "esbuild-plugin-copy": "^2.1.1",
+    "vite": "^7.0.6",
+    "wait-on": "^8.0.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
