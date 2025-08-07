@@ -72,9 +72,12 @@ function updateTsConfig(tsFile: string, name: string): void {
   }
   
   try {
-    // Read the file content and remove comments for parsing
+    // Read the file content and clean it for parsing
     const fileContent = readFileSync(tsConfigPath, 'utf8');
-    const jsonContent = fileContent.replace(/\/\/.*$/gm, ''); // Remove single-line comments
+    // Remove single-line comments and trailing commas
+    const jsonContent = fileContent
+      .replace(/\/\/.*$/gm, '') // Remove single-line comments
+      .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
     const tsConfig = JSON.parse(jsonContent);
     
     // Initialize paths if it doesn't exist
