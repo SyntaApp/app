@@ -33,10 +33,6 @@ export default class App {
    *   - Attach IPC handler?
    */
   constructor() {
-    const mainWindow = new BrowserWindow({
-      icon: new Asset("/logo.ico").toNativeImage(),
-    });
-
     // Prepare services
     function prepServices(services: ServiceManager) {
       const add = services.addService;
@@ -52,5 +48,10 @@ export default class App {
     // Setup dev tools if in debug mode
     // Load user preferences
     // Initialize state management
+
+    // Create & render window
+    // this.whenReady().then(createWindow);
+
+    // Watch for top level events like the window being closed.
   }
 }

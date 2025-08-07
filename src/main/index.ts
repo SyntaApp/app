@@ -1,31 +1,19 @@
-import { app, BrowserWindow } from "electron";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import App from "./classes/core/App";
 
-let mainWindow: BrowserWindow | null = null;
+/**
+ * Main application entry point
+ *
+ * This file serves as the clean entry point for the Synta application.
+ * All Electron logic, window management, and app lifecycle is handled
+ * by the App class itself.
+ */
+try {
+  // Initialize the main application
+  const app = new App();
 
-function generateIconPath() {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  return join(__dirname, "assets", "logo.ico");
+  // Log successful startup
+  console.log("🚀 Synta application started successfully");
+} catch (error) {
+  console.error("❌ Failed to start Synta application:", error);
+  process.exit(1);
 }
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    icon: generateIconPath(),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
-
-  mainWindow.loadURL("http://localhost:5174");
-}
-
-app.whenReady().then(createWindow);
-
-app.on("window-all-closed", () => {
-  app.quit();
-});
