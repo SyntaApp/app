@@ -22,7 +22,6 @@
     "renderer:build": "tsc -p src/render/tsconfig.json && vite build",
     "electron:dev": "concurrently \"bun mp:build:watch\" \"bun renderer:dev\" \"wait-on http://localhost:5174 && bun start\"",
     "dev": "concurrently \"bun mp:build:watch\" \"bun renderer:dev\" \"wait-on http://localhost:5174 && bun start\"",
-
     "scripts:path": "bun scripts/js/path.ts"
   },
   "author": "Neo Develops",
@@ -45,5 +44,8 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "exports": {
+    "#ReqService": "./src/main/functions/ReqService.ts"
   }
 }
