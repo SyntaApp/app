@@ -45,6 +45,10 @@ export interface LogRecord {
   winId?: number; // when available
 }
 
+/**
+ * Function type for log transports that handle the output of log records.
+ * Transports determine where and how log messages are written (console, file, etc.).
+ */
 type Transport = (rec: LogRecord) => void;
 
 /**
