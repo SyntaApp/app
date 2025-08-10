@@ -92,13 +92,13 @@ export default class Logger implements Service {
     } as Logger;
   }
 
-  public debug(msg: string, ctx: LogContext) {
+  public debug(msg: string, ctx?: LogContext) {
     this.route(LogLevel.DEBUG, msg, ctx);
   }
-  public info(msg: string, ctx: LogContext) {
+  public info(msg: string, ctx?: LogContext) {
     this.route(LogLevel.INFO, msg, ctx);
   }
-  public warn(msg: string, ctx: LogContext) {
+  public warn(msg: string, ctx?: LogContext) {
     this.route(LogLevel.WARN, msg, ctx);
   }
   public error(msg: string, err?: unknown & LogContext) {
