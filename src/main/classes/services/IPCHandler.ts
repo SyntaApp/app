@@ -1,4 +1,4 @@
-import type { Service } from "./ServiceManager";
+import type { Service } from "../core/ServiceManager";
 
 /**
  * Channels follow a `namespace:action` format. 
