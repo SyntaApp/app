@@ -48,6 +48,9 @@ export default class ServiceManager extends SelfManagedSingleton {
    * Returns the service instance with proper typing.
    */
   public get<T extends ServiceKey>(key: T): ServiceMap[T] {
+    if (!this.isInitialized) {
+      throw new Error(`"${key}" service accessed before initalization.`);
+    }
     return this.registry.get(key) as ServiceMap[T];
   }
 
@@ -60,8 +63,6 @@ export default class ServiceManager extends SelfManagedSingleton {
       return;
     }
 
-    this.isInitialized = true;
-
     for (const [key, service] of this.registry.entries()) {
       try {
         service.init?.();
@@ -71,6 +72,8 @@ export default class ServiceManager extends SelfManagedSingleton {
         throw error;
       }
     }
+
+    this.isInitialized = true;
   }
 
   /**
