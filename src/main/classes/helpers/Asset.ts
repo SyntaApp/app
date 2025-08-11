@@ -1,6 +1,7 @@
 import { join } from "path";
-import { readFileSync } from "fs";
-import { nativeImage } from "electron";
+import { readFileSync, existsSync } from "fs";
+import { nativeImage, app } from "electron";
+import swallow from "../../functions/swallow";
 
 /**
  * Represents an asset from the Asset directory.
@@ -8,7 +9,7 @@ import { nativeImage } from "electron";
  * Assets can be requested as buffers, native images, or their path.
  */
 export default class Asset {
-  private static defaultDir = "./assets";
+  private static defaultDir = "./dist/assets";
   private path: string;
 
   /**
@@ -21,7 +22,7 @@ export default class Asset {
   /**
    * Update the existing asset directory.
    */
-  public updateAssetDir(path: string) {
+  public static updateAssetDir(path: string) {
     Asset.defaultDir = path;
   }
 
@@ -43,6 +44,8 @@ export default class Asset {
    * @param relPath - Should be relative to the asset directory.
    */
   public static formPath(relPath: string) {
-    return join(process.cwd(), Asset.defaultDir, relPath);
+    const basePath = swallow(app.getAppPath, process.cwd());
+    
+    return join(basePath, Asset.defaultDir, relPath);
   }
 }
