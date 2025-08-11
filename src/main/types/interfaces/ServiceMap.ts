@@ -1,9 +1,11 @@
-import type IPCHandler from "../../classes/core/IPCHandler";
+import type IPCHandler from "../../classes/services/IPCHandler";
+import type Logger from "../../classes/services/Logger";
 
 /**
  * A type-safe mapping of all services that can be registered in Synta.
  * This interface enforces strict typing for service registration and dependency injection.
  */
 export interface ServiceMap {
-    IPCHandler: IPCHandler
+    Logger: Logger;
+    IPCHandler: IPCHandler;
 }
