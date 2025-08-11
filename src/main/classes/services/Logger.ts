@@ -13,7 +13,8 @@ export type LogScope =
   | (string & {});
 
 /**
- * What level the log is.
+ * Defines the severity/importance of log messages.
+ * Higher numeric values indicate more severe log levels.
  */
 export enum LogLevel {
   DEBUG = 0,
@@ -23,15 +24,14 @@ export enum LogLevel {
 }
 
 /**
- * Extra context to provide allong with the log message.
- * E.G: Erroring when there is a malformed obj and providing the obj as ctx.
+ * Extra context to provide in log record.
  */
 export interface LogContext {
   [k: string]: unknown;
 }
 
 /**
- * Represents a structured log entry with timestamp, level, message, and optional metadata.
+ * Represents a structured log entry..
  * Used for storing and transmitting log records across different parts of the application.
  */
 export interface LogRecord {
@@ -54,8 +54,7 @@ type Transport = (rec: LogRecord) => void;
 /**
  * # Logger
  *
- * Provides structured logging with levels, scopes, and enhanced formatting.
- * Wraps the existing logging methods from App.ts with additional functionality.
+ * Provides structured logging with levels, scopes, and formatting.
  */
 export default class Logger implements Service {
   private transports: Transport[];
@@ -68,8 +67,7 @@ export default class Logger implements Service {
   public init() {}
 
   /**
-   * Creates a sub logger used to aply
-   * @param baseMeta - A base obejct of meta data to apply to each log.
+   * Creates a sub logger used to auto apply certain pre-specified data.
    */
   public with(scope: LogScope, baseCtx?: LogContext): Logger {
     const parent = this;
@@ -106,7 +104,7 @@ export default class Logger implements Service {
     const ctx =
       typeof err === "object"
         ? (err as LogContext)
-        : { detail: this.safeValue(err) };
+        : { detail: Logger.safeValue(err) };
 
     this.route(LogLevel.ERROR, msg, ctx);
   }
@@ -134,7 +132,7 @@ export default class Logger implements Service {
   }
 
   /**
-   * Routes a new log.
+   * Formats a log and emits it to transports.
    */
   private route(level: LogLevel, message: string, ctx?: LogContext) {
     // Return if not in debug & log is debug
@@ -153,16 +151,110 @@ export default class Logger implements Service {
   }
 
   /**
-   * Emits a log to all transports.
+   * Emits a log to transports.
    */
   private emit(rec: LogRecord) {
     for (const t of this.transports) t(rec);
   }
 
+  /**
+   * Safe, dependency-free logger for early-start or crash scenarios.
+   *
+   * - Static: no instance or transports required
+   * - Best-effort console logging with stdout/stderr fallback
+   * - Sanitizes error/context to avoid JSON/circular issues
+   */
+  public static safeLog(
+    message: string,
+    options?: {
+      level?: LogLevel;
+      scope?: LogScope;
+      ctx?: LogContext | unknown;
+      error?: unknown;
+    }
+  ) {
+    const level = options?.level ?? LogLevel.INFO;
+    let ts = "";
+    try {
+      ts = new Date().toISOString();
+    } catch {
+      ts = String(Date.now());
+    }
+
+    const scope = options?.scope;
+
+    // Assemble minimal, safe meta
+    const meta: LogContext = {};
+    if (scope) meta.scope = scope;
+
+    const attach = (key: string, value: unknown) => {
+      const safe = Logger.safeValue(value);
+      if (safe !== undefined) (meta as any)[key] = safe;
+    };
+
+    if (options?.ctx !== undefined) {
+      if (typeof options.ctx === "object" && options.ctx !== null) {
+        // Try to keep structure but avoid circulars
+        try {
+          JSON.stringify(options.ctx);
+          Object.assign(meta, options.ctx as object);
+        } catch {
+          attach("ctx", options.ctx);
+        }
+      } else {
+        attach("detail", options.ctx);
+      }
+    }
+
+    if (options?.error !== undefined) attach("error", options.error);
+
+    try {
+      // Enrich if available, but do not depend on it
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p: any =
+        typeof process !== "undefined" ? (process as any) : undefined;
+      if (p?.pid !== undefined) (meta as any).pid = p.pid;
+      if (p?.type) (meta as any).proc = p.type;
+    } catch {
+      // ignore
+    }
+
+    const levelName = ["DEBUG", "INFO", "WARN", "ERROR"][level];
+    const scopePart = scope ? `(${scope})` : "";
+    const line = `[${ts}] [SAFE:${levelName}]${scopePart} ${message}`;
+
+    try {
+      switch (level) {
+        case LogLevel.DEBUG:
+          return console.debug(line, Object.keys(meta).length ? meta : "");
+        case LogLevel.INFO:
+          return console.log(line, Object.keys(meta).length ? meta : "");
+        case LogLevel.WARN:
+          return console.warn(line, Object.keys(meta).length ? meta : "");
+        case LogLevel.ERROR:
+          return console.error(line, Object.keys(meta).length ? meta : "");
+      }
+    } catch {
+      // Fallback to raw stream writes if console is unavailable/broken
+      try {
+        const raw = `${line} ${
+          Object.keys(meta).length ? JSON.stringify(meta) : ""
+        }\n`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p: any =
+          typeof process !== "undefined" ? (process as any) : undefined;
+        if (level === LogLevel.ERROR && p?.stderr?.write) p.stderr.write(raw);
+        else if (p?.stdout?.write) p.stdout.write(raw);
+      } catch {
+        // swallow
+      }
+    }
+  }
+
   // --------------- Helpers ------------------- //
 
   /**
-   * Creates a proper log from values.
+   * Creates a log record from values.
    */
   private format(lvl: LogLevel, message: string, ctx?: LogContext): LogRecord {
     return {
@@ -181,7 +273,7 @@ export default class Logger implements Service {
    * Handles Error objects by extracting their properties and provides
    * fallback string conversion for non-serializable values.
    */
-  private safeValue(v: unknown) {
+  private static safeValue(v: unknown) {
     if (v instanceof Error)
       return { name: v.name, message: v.message, stack: v.stack };
     try {
