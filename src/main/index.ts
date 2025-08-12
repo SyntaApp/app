@@ -11,8 +11,9 @@ try {
   // Initialize the main application
   const app = new App();
 
-  // Log successful startup
-  console.log("🚀 Synta application started successfully");
+  await app.init();
+
+  await app.start()
 } catch (error) {
   console.error("❌ Failed to start Synta application:", error);
   process.exit(1);
