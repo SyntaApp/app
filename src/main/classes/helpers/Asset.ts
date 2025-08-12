@@ -45,7 +45,7 @@ export default class Asset {
    */
   public static formPath(relPath: string) {
     const basePath = swallow(app.getAppPath, process.cwd());
-    
+
     return join(basePath, Asset.defaultDir, relPath);
   }
 }
