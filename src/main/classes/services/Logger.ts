@@ -1,4 +1,3 @@
-import swallow from "../../functions/swallow";
 import { type Service } from "../core/ServiceManager";
 import debug from "../../constants/debug";
 
@@ -121,7 +120,7 @@ export default class Logger implements Service {
    */
   private route(level: LogLevel, message: string, ctx?: Context) {
     // Return if not in debug & log is debug
-    if (level === LogLevel.DEBUG && !debug) return;
+    if (level === LogLevel.DEBUG && !this.isDebug) return;
 
     const rec = this.format(level, message, ctx);
     this.emit(rec);
