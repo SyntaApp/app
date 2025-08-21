@@ -1,5 +1,7 @@
+import debug from "../../constants/debug";
 import SelfManagedSingleton from "../../types/abstracts/SelfManagedSingleton";
 import type { ServiceMap } from "../../types/interfaces/ServiceMap";
+import Logger, { LogLevel } from "../services/Logger";
 
 export type ServiceKey = keyof ServiceMap;
 
@@ -18,10 +20,28 @@ export default class ServiceManager extends SelfManagedSingleton {
   private registry = new Map<ServiceKey, ServiceMap[ServiceKey] & Service>();
 
   /**
+   * Default way to request the logger.
+   * This getter functions even when services have been disposed by creating a
+   * substitute logger.
+   * It is the only "special" functionality existing on the service manager for a service.
+   */
+  private get logger(): Logger {
+    if (!this.ready) {
+      // This could be swapped out to use a minimal tiny logger
+      return new Logger().with({ subLogger: true });
+    } else {
+      return this.registry.get("Logger") as Logger;
+    }
+  }
+
+  /**
    * Represents if the class has been marked as ready yet.
    * If the class has initialized, additional services cannot be added.
    */
-  private isInitialized = false;
+  private _ready = false;
+  get ready() {
+    return this._ready;
+  }
 
   /**
    * Registers a service with type safety.
@@ -33,9 +53,9 @@ export default class ServiceManager extends SelfManagedSingleton {
     key: T,
     value: ServiceMap[T] & Service // Value must implement Service interface
   ) {
-    if (this.isInitialized) {
-      console.warn(
-        `Cannot register service '${key}': Service Manager has already been initialized. Services must be registered before initialization.`
+    if (this._ready) {
+      this.logger.warn(
+        `Cannot register service ${key} - Service Manager has already been initialized`
       );
       return;
     }
@@ -48,9 +68,20 @@ export default class ServiceManager extends SelfManagedSingleton {
    * Returns the service instance with proper typing.
    */
   public get<T extends ServiceKey>(key: T): ServiceMap[T] {
-    if (!this.isInitialized) {
-      throw new Error(`"${key}" service accessed before initalization.`);
+    // Special logic for logger service
+    if (key === "Logger") {
+      // Using logger getter ensures logger service will always be available
+      return this.logger as ServiceMap[T];
     }
+
+    if (!this._ready) {
+      throw new Error(`"${key}" accessed before SM initialization`);
+    }
+
+    if (!this.registry.has(key)) {
+      throw new Error(`${key} has not been registered with SM`);
+    }
+
     return this.registry.get(key) as ServiceMap[T];
   }
 
@@ -58,22 +89,22 @@ export default class ServiceManager extends SelfManagedSingleton {
    * Initializes all registered services.
    */
   public init(): void {
-    if (this.isInitialized) {
-      console.warn("Service Manager has already been initialized");
+    if (this._ready) {
+      this.logger.warn("Service Manager has already been initialized");
       return;
     }
 
     for (const [key, service] of this.registry.entries()) {
       try {
         service.init?.();
-        console.log(`Service '${key}' initialized successfully`);
-      } catch (error) {
-        console.error(`Failed to initialize service '${key}':`, error);
-        throw error;
+      } catch (err) {
+        this.logger.error(`Error initializing ${key}: ${err}`);
+      } finally {
+        this.logger.info(`Service '${key}' initialized successfully`);
       }
     }
 
-    this.isInitialized = true;
+    this._ready = true;
   }
 
   /**
@@ -87,14 +118,15 @@ export default class ServiceManager extends SelfManagedSingleton {
     for (const [key, service] of services) {
       try {
         service.dispose?.();
-        console.log(`Service '${key}' disposed successfully`);
       } catch (error) {
-        console.error(`Failed to dispose service '${key}':`, error);
+        this.logger.error(`Failed to dispose service: ${key}`);
+      } finally {
+        this.logger.info(`${key} disposed successfully`);
       }
     }
 
     this.registry.clear();
-    this.isInitialized = false;
+    this._ready = false;
   }
 }
 
@@ -115,6 +147,9 @@ export interface Service {
    * Called last in the service lifecycle.
    */
   dispose?: () => void | Promise<void>;
+
+  // Allow additional items to avoid comparison errors
+  [k: string]: any;
 }
 
 /**

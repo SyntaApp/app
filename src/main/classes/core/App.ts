@@ -4,6 +4,7 @@ import Logger, { LogLevel } from "../services/Logger";
 import IPCHandler from "../services/IPCHandler";
 import type { ServiceMap } from "../../types/interfaces/ServiceMap";
 import BrowserWindow from "../helpers/BrowserWindow";
+import debug from "../../constants/debug";
 
 /**
  * Application lifecycle states
@@ -31,27 +32,8 @@ export enum AppState {
  */
 export default class App {
   private state: AppState = AppState.INITIALIZING;
-  public readonly debug: boolean = true;
-
   private get services() {
     return ServiceManager.getInstance();
-  }
-
-  get logger() {
-    switch (this.state) {
-      case AppState.INITIALIZING:
-        throw new Error("Logger cannot be accessed while initalizing.");
-      case AppState.SHUTTING_DOWN:
-        Logger.safeLog(
-          "Logger accessed during shutdown, behavior may be unpredictable",
-          {
-            level: LogLevel.WARN,
-          }
-        );
-        break;
-    }
-
-    return ReqService("Logger").with("app", { state: this.state });
   }
 
   /**
@@ -63,27 +45,22 @@ export default class App {
    * @throws {Error} When any critical initialization step fails
    */
   public async init(): Promise<void> {
+    // Tiny logger returned by the SM for logging when services are unavailable.
+    const initLogger = ReqService("Logger");
     try {
-      // Create a temp logger used during init
-      const initLogger = new Logger(this.debug).with("init");
-
       initLogger.info("Initializing Synta application");
 
       this.initServices(initLogger);
       this.setupEventHandlers(initLogger);
 
-      this.state = AppState.READY;
-      this.logger.info("Application initialized successfully");
+      this.newState(AppState.READY);
 
-      // Should be called externally, this method is to "initalize"
-      // await this.startApplication();
+      // Request logger again so we use the full instanced version.
+      ReqService("Logger").info("Application initialized successfully");
     } catch (error) {
       this.newState(AppState.ERROR);
-      Logger.safeLog("Application initialization failed", {
-        error,
-        level: LogLevel.ERROR,
-        scope: "app",
-      });
+
+      initLogger.error("Application initialization failed", { error });
 
       // TODO: Implement error recovery or graceful shutdown
       electronApp.quit();
@@ -99,22 +76,24 @@ export default class App {
    * @throws {Error} When application is not in READY state or startup fails
    */
   public async start(): Promise<void> {
+    const logger = ReqService("Logger");
+
     if (this.state !== AppState.READY) {
-      this.logger.error(
+      logger.error(
         `Cannot start app with ${this.state} state, expected ${AppState.READY}. App will remain in original state.`
       );
       return;
     }
 
-    this.logger.info("Starting application");
+    logger.debug("Starting application");
 
     electronApp.whenReady().then(async () => {
-      this.state = AppState.RUNNING;
+      this.newState(AppState.RUNNING);
 
       await this.createMainWindow();
     });
 
-    this.logger.info("Application started successfully");
+    logger.info("Application started successfully");
   }
 
   /**
@@ -128,7 +107,7 @@ export default class App {
 
     // Register services
     const serviceReg: ReadonlyArray<[ServiceKey, ServiceMap[ServiceKey]]> = [
-      ["Logger", new Logger(this.debug)],
+      ["Logger", new Logger()],
       ["IPCHandler", new IPCHandler()],
     ];
 
@@ -146,12 +125,12 @@ export default class App {
    * Sets up system-wide event handlers with proper cleanup
    */
   private setupEventHandlers(logger: Logger) {
-    // Todo: make these events more modular.
     logger.info("Setting up event handlers");
 
     // Application lifecycle events
     electronApp.on("window-all-closed", () => {
-      logger.info("All windows closed");
+      // Re-req service - don't want to use init logger.
+      ReqService("Logger").info("All windows closed");
 
       if (process.platform !== "darwin") {
         this.shutdown();
@@ -164,7 +143,8 @@ export default class App {
      * to recreate the main window when the user clicks the dock icon to reactivate the app.
      */
     electronApp.on("activate", () => {
-      this.logger.info("Application activated");
+      // Re-req service - don't want to use init logger.
+      ReqService("Logger").info("Application activated");
 
       this.createMainWindow();
     });
@@ -176,14 +156,16 @@ export default class App {
    * Creates and configures the main application window
    */
   private async createMainWindow(): Promise<void> {
+    const logger = ReqService("Logger");
+
     if (this.state !== AppState.RUNNING) {
-      this.logger.error(
+      logger.error(
         `Cannot start app with ${this.state} state, expected ${AppState.RUNNING}. App will remain in original state.`
       );
       return;
     }
 
-    this.logger.info("Creating main window");
+    logger.info("Creating main window");
 
     const mainWindow = new BrowserWindow();
 
@@ -193,15 +175,16 @@ export default class App {
 
     // Load content based on environment
     //todo:
-    if (this.debug) {
-      await mainWindow.loadURL("http://localhost:5173");
+    if (debug) {
+      // Should not use debug but rather a prod/dev
+      await mainWindow.loadURL("http://localhost:5174");
     } else {
       try {
         // TODO: Implement production file loading
         // await window.loadFile("path/to/production/index.html");
-        this.logger.warn("Production content loading not implemented");
+        logger.warn("Production content loading not implemented");
       } catch (error) {
-        this.logger.error("Failed to load production content", { error });
+        logger.error("Failed to load production content", { error });
       }
     }
   }
@@ -210,8 +193,9 @@ export default class App {
    * Gracefully shuts down the application
    */
   private async shutdown(): Promise<void> {
-    this.logger.info("Shutting down application");
-    this.state = AppState.SHUTTING_DOWN;
+    ReqService("Logger").info("Shutting down application");
+
+    this.newState(AppState.SHUTTING_DOWN);
 
     // Stop and dispose services
     this.services.dispose();
