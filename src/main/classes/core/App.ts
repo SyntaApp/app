@@ -32,6 +32,7 @@ export enum AppState {
  */
 export default class App {
   private state: AppState = AppState.INITIALIZING;
+  private mainWindow: BrowserWindow | null = null;
   private get services() {
     return ServiceManager.getInstance();
   }
@@ -50,7 +51,7 @@ export default class App {
     try {
       initLogger.info("Initializing Synta application");
 
-      this.initServices(initLogger);
+      await this.initServices(initLogger);
       this.setupEventHandlers(initLogger);
 
       this.newState(AppState.READY);
@@ -86,14 +87,16 @@ export default class App {
     }
 
     logger.debug("Starting application");
-
-    electronApp.whenReady().then(async () => {
-      this.newState(AppState.RUNNING);
-
-      await this.createMainWindow();
-    });
-
-    logger.info("Application started successfully");
+    return electronApp
+      .whenReady()
+      .then(async () => {
+        this.newState(AppState.RUNNING);
+        await this.createMainWindow();
+        logger.info("Application started successfully");
+      })
+      .catch((error) => {
+        logger.error("Failed to start application", { error });
+      });
   }
 
   /**
@@ -102,7 +105,7 @@ export default class App {
    * Registers services in dependency order, initializes them through the ServiceManager,
    * and performs post-initialization configuration.
    */
-  private initServices(logger: Logger) {
+  private async initServices(logger: Logger): Promise<void> {
     logger.info("Setting up application services");
 
     // Register services
@@ -116,7 +119,7 @@ export default class App {
     });
 
     // Init services
-    this.services.init();
+    await this.services.init();
 
     logger.info("Services initialized successfully");
   }
@@ -128,12 +131,16 @@ export default class App {
     logger.info("Setting up event handlers");
 
     // Application lifecycle events
-    electronApp.on("window-all-closed", () => {
+    electronApp.on("window-all-closed", async () => {
       // Re-req service - don't want to use init logger.
       ReqService("Logger").info("All windows closed");
 
       if (process.platform !== "darwin") {
-        this.shutdown();
+        try {
+          await this.shutdown();
+        } catch (error) {
+          ReqService("Logger").error("Failed to shut down application", { error });
+        }
       }
     });
 
@@ -160,14 +167,18 @@ export default class App {
 
     if (this.state !== AppState.RUNNING) {
       logger.error(
-        `Cannot start app with ${this.state} state, expected ${AppState.RUNNING}. App will remain in original state.`
+        `Cannot create main window with ${this.state} state, expected ${AppState.RUNNING}.`
       );
       return;
     }
 
     logger.info("Creating main window");
 
-    const mainWindow = new BrowserWindow();
+    this.mainWindow = new BrowserWindow();
+    const mainWindow = this.mainWindow;
+    mainWindow.on("closed", () => {
+      this.mainWindow = null;
+    });
 
     // Set up security handlers for the window
     // security.setupWindowOpenHandler(mainWindow.webContents);
@@ -198,10 +209,14 @@ export default class App {
     this.newState(AppState.SHUTTING_DOWN);
 
     // Stop and dispose services
-    this.services.dispose();
+    await this.services.dispose();
 
     // Quit application
-    electronApp.quit();
+    try {
+      electronApp.quit();
+    } catch (error) {
+      ReqService("Logger").error("Failed to quit application", { error });
+    }
   }
 
   /**
