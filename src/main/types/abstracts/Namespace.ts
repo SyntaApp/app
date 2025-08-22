@@ -1,4 +1,5 @@
 import type { Channel } from "../types/Channel";
+import type { ActionMethod } from "../../classes/services/IPCHandler";
 
 /**
  * # Namespace
@@ -33,6 +34,27 @@ export default abstract class Namespace {
    */
   protected addAction(key: string) {
     this.actionRegistry.add(key);
+  }
+
+  /**
+   * Retrieves an action method from this namespace by its registered name.
+   *
+   * This method performs two validations:
+   * 1. Checks if the action name exists in the action registry
+   * 2. Verifies that the property is actually a callable function
+   *
+   * @example
+   * ```ts
+   * const action = namespace.getAction('sync');
+   * if (action) {
+   *   const result = await action.call(namespace, event, ...args);
+   * }
+   * ```
+   */
+  public getAction(name: string): ActionMethod | undefined {
+    if (!this.actionRegistry.has(name)) return undefined;
+    const action = (this as any)[name];
+    return typeof action === "function" ? action : undefined;
   }
 
   /**
