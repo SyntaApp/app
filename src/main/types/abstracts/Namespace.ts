@@ -1,3 +1,4 @@
+import type { IpcMainInvokeEvent } from "electron";
 import type { Channel } from "../types/Channel";
 import type { ActionMethod } from "../../classes/services/IPCHandler";
 
@@ -87,8 +88,15 @@ export default abstract class Namespace {
 
 /**
  * Registers an action with its class registry.
+ * Enforces that decorated methods match the ActionMethod signature.
  */
-export function Action(value: Function, context: ClassMethodDecoratorContext) {
+export function Action<This, Args extends readonly unknown[], Return>(
+  value: (this: This, event: IpcMainInvokeEvent, ...args: Args) => Return,
+  context: ClassMethodDecoratorContext<
+    This,
+    (this: This, event: IpcMainInvokeEvent, ...args: Args) => Return
+  >
+) {
   // Ensure the item is a method and is not static
   if (context.kind !== "method" || context.static) {
     throw new Error(
