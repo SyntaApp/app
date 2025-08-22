@@ -50,7 +50,7 @@ export default class App {
     try {
       initLogger.info("Initializing Synta application");
 
-      this.initServices(initLogger);
+      await this.initServices(initLogger);
       this.setupEventHandlers(initLogger);
 
       this.newState(AppState.READY);
@@ -102,7 +102,7 @@ export default class App {
    * Registers services in dependency order, initializes them through the ServiceManager,
    * and performs post-initialization configuration.
    */
-  private initServices(logger: Logger) {
+  private async initServices(logger: Logger): Promise<void> {
     logger.info("Setting up application services");
 
     // Register services
@@ -116,7 +116,7 @@ export default class App {
     });
 
     // Init services
-    this.services.init();
+    await this.services.init();
 
     logger.info("Services initialized successfully");
   }
@@ -133,7 +133,7 @@ export default class App {
       ReqService("Logger").info("All windows closed");
 
       if (process.platform !== "darwin") {
-        this.shutdown();
+        void this.shutdown();
       }
     });
 
@@ -146,7 +146,7 @@ export default class App {
       // Re-req service - don't want to use init logger.
       ReqService("Logger").info("Application activated");
 
-      this.createMainWindow();
+      void this.createMainWindow();
     });
 
     logger.info("Event handlers registered successfully");
@@ -198,7 +198,7 @@ export default class App {
     this.newState(AppState.SHUTTING_DOWN);
 
     // Stop and dispose services
-    this.services.dispose();
+    await this.services.dispose();
 
     // Quit application
     electronApp.quit();

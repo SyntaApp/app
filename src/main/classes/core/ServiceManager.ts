@@ -88,7 +88,7 @@ export default class ServiceManager extends SelfManagedSingleton {
   /**
    * Initializes all registered services.
    */
-  public init(): void {
+  public async init(): Promise<void> {
     if (this._ready) {
       this.logger.warn("Service Manager has already been initialized");
       return;
@@ -96,7 +96,7 @@ export default class ServiceManager extends SelfManagedSingleton {
 
     for (const [key, service] of this.registry.entries()) {
       try {
-        service.init?.();
+        await service.init?.();
       } catch (err) {
         this.logger.error(`Error initializing ${key}: ${err}`);
       } finally {
@@ -111,13 +111,13 @@ export default class ServiceManager extends SelfManagedSingleton {
    * Disposes all registered services.
    * This is the final step in the service lifecycle.
    */
-  public dispose(): void {
+  public async dispose(): Promise<void> {
     // Dispose services in reverse order
     const services = Array.from(this.registry.entries()).reverse();
 
     for (const [key, service] of services) {
       try {
-        service.dispose?.();
+        await service.dispose?.();
       } catch (error) {
         this.logger.error(`Failed to dispose service: ${key}`);
       } finally {
