@@ -1,4 +1,5 @@
 import type { IpcMainInvokeEvent } from "electron";
+import type ActionResponse from "../interfaces/ActionResponse";
 import type { Channel } from "../types/Channel";
 import type { ActionMethod } from "../../classes/services/IPCHandler";
 
@@ -118,4 +119,57 @@ export function Action<This, Args extends readonly unknown[], Return>(
 
     this.addAction(String(context.name));
   });
+}
+
+/**
+ * Rate limits an action. Essentially stops the renderer from spamming requests to this channel.
+ */
+export function Ratelimit(
+  ms: number,
+  every: number,
+  msg: ActionResponse = { status: 429, message: "Rate limit exceeded" }
+) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+
+    // Persistent variables that exist across all method calls
+    const callTimestamps = new Map<object, number[]>();
+
+    descriptor.value = function (...args: any[]) {
+      const now = Date.now();
+      const instance = this;
+
+      // Get or initialize call history for this instance
+      let timestamps = callTimestamps.get(instance) || [];
+
+      // Remove timestamps older than the time window
+      timestamps = timestamps.filter((timestamp) => now - timestamp < ms);
+
+      // Check if we've exceeded the call limit
+      if (timestamps.length >= every) {
+        const oldestCall = timestamps[0];
+        const waitTime = ms - (now - oldestCall);
+
+        return {
+          ...msg,
+          message: `${msg.message}. Try again in ${waitTime}ms`,
+        } as ActionResponse;
+      }
+
+      // Add current call timestamp
+      timestamps.push(now);
+      callTimestamps.set(instance, timestamps);
+
+      // Execute the original method
+      const result = originalMethod.apply(this, args);
+
+      return result;
+    };
+
+    return descriptor;
+  };
 }
