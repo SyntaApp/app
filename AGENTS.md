@@ -9,7 +9,7 @@ This guide explains Synta's environment and contribution rules. Read it fully be
 
 ## Environment Setup
 1. Install Bun from https://bun.sh if it is not already installed.
-2. Install project dependencies:
+2. Install project dependencies (run only if `node_modules` is missing or deps change):
    ```bash
    bun install
    ```
@@ -33,7 +33,7 @@ This guide explains Synta's environment and contribution rules. Read it fully be
   ```bash
   bun start
   ```
-- Run tests (always run before committing, even if no tests are present):
+- Run tests with Bun's built-in test runner (always run before committing, even if no tests are present):
   ```bash
   bun test
   ```
