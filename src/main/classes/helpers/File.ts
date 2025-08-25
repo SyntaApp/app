@@ -82,6 +82,20 @@ export default class File {
   }
 
   /**
+   * Reads JSON and returns the fallback on error or missing/empty file.
+   */
+  public safeObject<T extends object = Record<string, unknown>>(fallback: T = {} as T): T {
+    try {
+      if (!this.exists()) return fallback;
+      const content = this.string();
+      if (!content || !content.trim()) return fallback;
+      return JSON.parse(content) as T;
+    } catch {
+      return fallback;
+    }
+  }
+
+  /**
    * Check if the file exists at the resolved path.
    */
   public exists(): boolean {
@@ -100,6 +114,33 @@ export default class File {
         ? JSON.stringify(data)
         : data;
     fs.writeFileSync(this.path, content, options);
+  }
+
+  /**
+   * Ensures the parent directory exists.
+   */
+  public ensureDir(): void {
+    fs.mkdirSync(this.dir, { recursive: true });
+  }
+
+  /**
+   * Atomically writes data by saving to a temporary file and renaming.
+   * If data is an object, it will be JSON.stringified. Use options.pretty
+   * to pretty-print JSON (true => 2 spaces, or provide a number).
+   */
+  public writeAtomic(
+    data: string | Buffer | object,
+    options?: { pretty?: boolean | number }
+  ): void {
+    this.ensureDir();
+    const tmpPath = `${this.path}.tmp`;
+    let content: string | Buffer = data as any;
+    if (typeof data === "object" && !(data instanceof Buffer)) {
+      const spaces = typeof options?.pretty === "number" ? options.pretty : options?.pretty ? 2 : undefined;
+      content = JSON.stringify(data, null, spaces);
+    }
+    fs.writeFileSync(tmpPath, content);
+    fs.renameSync(tmpPath, this.path);
   }
 
   /**

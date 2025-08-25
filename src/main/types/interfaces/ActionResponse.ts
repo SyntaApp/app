@@ -18,4 +18,6 @@
 export default interface ActionResponse {
   status: number;
   message?: string;
+  // Optional payload returned by actions
+  data?: unknown;
 }

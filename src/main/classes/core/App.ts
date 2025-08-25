@@ -2,6 +2,7 @@ import { app as electronApp } from "electron";
 import ServiceManager, { type ServiceKey, ReqService } from "./ServiceManager";
 import Logger, { LogLevel } from "../services/Logger";
 import IPCHandler from "../services/IPCHandler";
+import Settings from "../services/Settings";
 import type { ServiceMap } from "../../types/interfaces/ServiceMap";
 import BrowserWindow from "../helpers/BrowserWindow";
 import debug from "../../constants/debug";
@@ -36,7 +37,7 @@ export default class App {
   private get services() {
     return ServiceManager.getInstance();
   }
-
+  
   /**
    * Initializes the application and completes startup sequences.
    *
@@ -112,6 +113,7 @@ export default class App {
     const serviceReg: ReadonlyArray<[ServiceKey, ServiceMap[ServiceKey]]> = [
       ["Logger", new Logger()],
       ["IPCHandler", new IPCHandler()],
+      ["Settings", new Settings()],
     ];
 
     serviceReg.forEach((s) => {
