@@ -20,14 +20,6 @@ export type ActionMethod = (
  * communication.
  */
 export default class IPCHandler implements Service {
-  init?(): any {
-    // Initialize IPC handler
-  }
-
-  dispose?(): any {
-    // Cleanup IPC handler
-  }
-
   /**
    * Registers a channel with the registry.
    */
