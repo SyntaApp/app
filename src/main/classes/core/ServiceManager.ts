@@ -138,13 +138,13 @@ export interface Service {
    * Initialization function invoked after the service is registered.
    * Called first in the service lifecycle.
    */
-  init?: () => void | Promise<void>;
+  init?: (...args: any[]) => void | Promise<void>;
 
   /**
    * Disposal function invoked before Service goes out of scope.
    * Called last in the service lifecycle.
    */
-  dispose?: () => void | Promise<void>;
+  dispose?: (...args: any[]) => void | Promise<void>;
 
   // Allow additional items to avoid comparison errors
   [k: string]: any;
