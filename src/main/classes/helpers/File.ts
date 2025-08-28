@@ -84,7 +84,9 @@ export default class File {
   /**
    * Reads JSON and returns the fallback on error or missing/empty file.
    */
-  public safeObject<T extends object = Record<string, unknown>>(fallback: T = {} as T): T {
+  public safeObject<T extends object = Record<string, unknown>>(
+    fallback: T = {} as T
+  ): T {
     try {
       if (!this.exists()) return fallback;
       const content = this.string();
@@ -136,7 +138,12 @@ export default class File {
     const tmpPath = `${this.path}.tmp`;
     let content: string | Buffer = data as any;
     if (typeof data === "object" && !(data instanceof Buffer)) {
-      const spaces = typeof options?.pretty === "number" ? options.pretty : options?.pretty ? 2 : undefined;
+      const spaces =
+        typeof options?.pretty === "number"
+          ? options.pretty
+          : options?.pretty
+          ? 2
+          : undefined;
       content = JSON.stringify(data, null, spaces);
     }
     fs.writeFileSync(tmpPath, content);
@@ -148,7 +155,7 @@ export default class File {
    */
   public touch(): void {
     if (!this.exists()) {
-      fs.writeFileSync(this.path, '');
+      fs.writeFileSync(this.path, "");
     }
   }
 }
