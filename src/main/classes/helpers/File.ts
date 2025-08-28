@@ -1,4 +1,5 @@
 import fs from "fs";
+import { promises as fsPromises } from "fs";
 import path from "path";
 import { type ChokidarOptions, watch, FSWatcher } from "chokidar";
 
@@ -14,8 +15,8 @@ import { type ChokidarOptions, watch, FSWatcher } from "chokidar";
  * ```ts
  * const file = new File(File.workingDir, "/preload/something/file.ts");
  *
- * if (file.exists()) {
- *   const content = file.string();
+ * if (await file.exists()) {
+ *   const content = await file.string();
  *   console.log(`File name: ${file.name}, File content: ${content}`);
  * }
  * ```
@@ -57,25 +58,25 @@ export default class File {
   /**
    * Read the file contents as a UTF-8 encoded string.
    */
-  public string(): string {
-    return fs.readFileSync(this.path, "utf-8");
+  public async string(): Promise<string> {
+    return fsPromises.readFile(this.path, "utf-8");
   }
 
   /**
    * Read the file contents as a raw Buffer.
    * Useful for binary files or when you need the raw bytes.
    */
-  public buffer(): Buffer {
-    return fs.readFileSync(this.path);
+  public async buffer(): Promise<Buffer> {
+    return fsPromises.readFile(this.path);
   }
 
   /**
    * Reads the file contents as an JS object.
    * @throws {Error} if file does not export valid JSON.
    */
-  public object(): Object {
+  public async object(): Promise<Object> {
     try {
-      const content = this.string();
+      const content = await this.string();
       return JSON.parse(content);
     } catch {
       throw new Error(`File contains malformed JSON at location: ${this.path}`);
@@ -85,12 +86,12 @@ export default class File {
   /**
    * Reads JSON and returns the fallback on error or missing/empty file.
    */
-  public safeObject<T extends object = Record<string, unknown>>(
+  public async safeObject<T extends object = Record<string, unknown>>(
     fallback: T = {} as T
-  ): T {
+  ): Promise<T> {
     try {
-      if (!this.exists()) return fallback;
-      const content = this.string();
+      if (!(await this.exists())) return fallback;
+      const content = await this.string();
       if (!content || !content.trim()) return fallback;
       return JSON.parse(content) as T;
     } catch {
@@ -101,29 +102,34 @@ export default class File {
   /**
    * Check if the file exists at the resolved path.
    */
-  public exists(): boolean {
-    return fs.existsSync(this.path);
+  public async exists(): Promise<boolean> {
+    try {
+      await fsPromises.access(this.path);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
    * Write data to the file, creating it if it doesn't exist.
    */
-  public write(
+  public async write(
     data: string | Buffer | object,
     options?: fs.WriteFileOptions
-  ): void {
+  ): Promise<void> {
     const content =
       typeof data === "object" && !(data instanceof Buffer)
         ? JSON.stringify(data)
         : data;
-    fs.writeFileSync(this.path, content, options);
+    await fsPromises.writeFile(this.path, content, options);
   }
 
   /**
    * Ensures the parent directory exists.
    */
-  public ensureDir(): void {
-    fs.mkdirSync(this.dir, { recursive: true });
+  public async ensureDir(): Promise<void> {
+    await fsPromises.mkdir(this.dir, { recursive: true });
   }
 
   /**
@@ -131,11 +137,11 @@ export default class File {
    * If data is an object, it will be JSON.stringified. Use options.pretty
    * to pretty-print JSON (true => 2 spaces, or provide a number).
    */
-  public writeAtomic(
+  public async writeAtomic(
     data: string | Buffer | object,
     options?: { pretty?: boolean | number }
-  ): void {
-    this.ensureDir();
+  ): Promise<void> {
+    await this.ensureDir();
     const tmpPath = `${this.path}.tmp`;
     let content: string | Buffer = data as any;
     if (typeof data === "object" && !(data instanceof Buffer)) {
@@ -147,16 +153,16 @@ export default class File {
           : undefined;
       content = JSON.stringify(data, null, spaces);
     }
-    fs.writeFileSync(tmpPath, content);
-    fs.renameSync(tmpPath, this.path);
+    await fsPromises.writeFile(tmpPath, content);
+    await fsPromises.rename(tmpPath, this.path);
   }
 
   /**
    * Creates the file if it does not exist.
    */
-  public touch(): void {
-    if (!this.exists()) {
-      fs.writeFileSync(this.path, "");
+  public async touch(): Promise<void> {
+    if (!(await this.exists())) {
+      await fsPromises.writeFile(this.path, "");
     }
   }
 
