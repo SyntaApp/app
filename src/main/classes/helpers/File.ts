@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { type ChokidarOptions, watch, FSWatcher } from "chokidar";
 
 /**
  * # File Helper
@@ -157,5 +158,18 @@ export default class File {
     if (!this.exists()) {
       fs.writeFileSync(this.path, "");
     }
+  }
+
+  /**
+   * Watch this file for changes and invoke the callback on each change.
+   * Returns the underlying watcher so callers can close it when done.
+   */
+  public watch(
+    onChange: (filePath: string) => void,
+    options?: ChokidarOptions
+  ): FSWatcher {
+    const watcher = watch(this.path, { ignoreInitial: true, ...options });
+    watcher.on("change", onChange);
+    return watcher;
   }
 }
